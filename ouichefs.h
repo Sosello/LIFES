@@ -37,8 +37,7 @@
  */
 
 struct ouichefs_block_info {
-    uint32_t block_number:20; /* Block number */
-    uint32_t used_size:12; /* Used size of the block */
+    char data[OUICHEFS_BLOCK_SIZE]; /* Used size of the block */
 };
 
 struct ouichefs_inode {

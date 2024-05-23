@@ -65,25 +65,27 @@ int insert_file(char* message, char *path, int offset)
     lseek(file_w, offset, SEEK_SET);
     char buffer[BUFFER_SIZE];
     ssize_t bytesRead, bytesWritten;
-    while ((bytesRead = read(file_w, buffer, BUFFER_SIZE)) > 0) {
-        if ((bytesWritten = write(temp_file, buffer, bytesRead)) < bytesRead) {
-            perror("Error writing temp file");
-            return 1;
-        }
-    }
+    // while ((bytesRead = read(file_w, buffer, BUFFER_SIZE)) > 0) {
+    //     if ((bytesWritten = write(temp_file, buffer, bytesRead)) < bytesRead) {
+    //         perror("Error writing temp file");
+    //         return 1;
+    //     }
+    // }
     lseek(file_w, offset, SEEK_SET);
     if(write(file_w, message, strlen(message)) < 0) {
         perror("Error writing file 1");
         return 1;
     }
     lseek(temp_file, 0, SEEK_SET);
-    while ((bytesRead = read(temp_file, buffer, BUFFER_SIZE)) > 0) {
-        if ((bytesWritten = write(file_w, buffer, bytesRead)) < bytesRead) {
-            printf("Bytes written: %ld\n", bytesWritten);
-            perror("Error writing file 2");
-            return 1;
-        }
-    }
+    // while ((bytesRead = read(temp_file, buffer, BUFFER_SIZE)) > 0) {
+    //     // if ((bytesWritten = write(file_w, buffer, bytesRead)) < bytesRead) {
+    //     //     printf("Bytes written: %ld\n", bytesWritten);
+    //     //     printf("Bytes read: %ld\n", bytesRead);
+    //     //     perror("Error writing file 2");
+    //     //     return 1;
+    //     // }
+    //     write(file_w, buffer, bytesRead);
+    // }
     end = clock();
     printf("Insert time: %f\n", ((double) (end - start)) / CLOCKS_PER_SEC);
     close(file_w);
@@ -105,8 +107,16 @@ int main()
         return 1;
     }
     copy_file(file, "/mnt/ouichefs/file1");
+    int file1_before  = open("/mnt/ouichefs/file1", O_RDONLY);
+    if (file1_before < 0) {
+        perror("Error opening file");
+        return 1;
+    }
+    if(ioctl(file1_before, LIST_USED_BLOCKS, buf)==-1)
+        perror("Failed to system call ioctl in LIST_USED request\n");
+    printf("resultat of ioctl LIST_USED_BLOCKS: %s\n", buf);
     insert_file("Hello World", "/mnt/ouichefs/file1", 0);
-    // copy_file(file, "/mnt/ouichefs/file2");
+    copy_file(file, "/mnt/ouichefs/file2");
 
     int file1  = open("/mnt/ouichefs/file1", O_RDONLY);
     if (file1 < 0) {
@@ -117,26 +127,27 @@ int main()
 
     // ioctl tests
     memset(buf, 0, 1024);
-    // if(ioctl(file1, USED_BLOCKS, buf)==-1)
-    //     perror("Failed to system call ioctl in USED_BLOCKS request\n");
-    // printf("resultat of ioctl USED_BLOCKS: %s\n", buf);
-    // if(ioctl(file1, PARTIALLY_BLOCKS, buf)==-1)
-    //     perror("Failed to system call ioctl in PARTIALLY_BLOCKS request\n");
-    // printf("resultat of ioctl PARTIALLY_BLOCKS: %s\n", buf);
-    // if(ioctl(file1, WASTED_BYTES, buf)==-1)
-    //     perror("Failed to system call ioctl in  WASTED_BYTES request\n");
-    // printf("resultat of ioctl WASTED_BYTES: %s\n", buf);
+    if(ioctl(file1, USED_BLOCKS, buf)==-1)
+        perror("Failed to system call ioctl in USED_BLOCKS request\n");
+    printf("resultat of ioctl USED_BLOCKS: %s\n", buf);
+    if(ioctl(file1, PARTIALLY_BLOCKS, buf)==-1)
+        perror("Failed to system call ioctl in PARTIALLY_BLOCKS request\n");
+    printf("resultat of ioctl PARTIALLY_BLOCKS: %s\n", buf);
+    if(ioctl(file1, WASTED_BYTES, buf)==-1)
+        perror("Failed to system call ioctl in  WASTED_BYTES request\n");
+    printf("resultat of ioctl WASTED_BYTES: %s\n", buf);
     if(ioctl(file1, LIST_USED_BLOCKS, buf)==-1)
         perror("Failed to system call ioctl in LIST_USED request\n");
     printf("resultat of ioctl LIST_USED_BLOCKS: %s\n", buf);
-    if(ioctl(file1, INSERT_FILE, buf)==-1)
-        perror("Failed to system call ioctl in INSERT_FILE request\n");
-    if(ioctl(file1, LIST_USED_BLOCKS, buf)==-1)
-        perror("Failed to system call ioctl in LIST_USED request\n");
-    printf("resultat of ioctl LIST_USED_BLOCKS: %s\n", buf);
+    // if(ioctl(file1, INSERT_FILE, buf)==-1)
+    //     perror("Failed to system call ioctl in INSERT_FILE request\n");
+    // if(ioctl(file1, LIST_USED_BLOCKS, buf)==-1)
+    //     perror("Failed to system call ioctl in LIST_USED request\n");
+    // printf("resultat of ioctl LIST_USED_BLOCKS: %s\n", buf);
     
     // copy_file(file1, "/mnt/ouichefs/file3");
     close(file);
     close(file1);
+    close(file1_before);
     return 0;
 }
