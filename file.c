@@ -290,8 +290,10 @@ static ssize_t ouichefs_read(struct file *file, char __user *data, size_t len, l
 }
 
 /*
- * Write function for the ouichefs filesystem. This function allows to write data without
- * the use of page cache.
+ * la fonction retourne un int qui represent les cas differents
+ * 0 : il n'a besoin pas d'un nouveau block
+ * 1 : ce bloc n'est pas allouee
+ * 2 : n'a pas assez place pour ecrire len bits du donees 
  */
 
 int need_new_block(struct ouichefs_file_index_block *index, sector_t iblock, 
@@ -446,6 +448,13 @@ static ssize_t ouichefs_write(struct file *file, const char __user *data, size_t
 	return len;
 }
 
+/*
+ * inode : OUICHEFS_INODE(inode)
+ * sb : super block
+ * i : l'index du bloc 
+ * block_num : un pointeur qui peut stocker le numero du block
+ * la fonction retourne le nombre de bytes effective de ce block
+ */
 static int get_used_size(struct ouichefs_inode_info *inode, struct super_block *sb, uint32_t i, int* block_num) {
 	struct buffer_head *bh_index = sb_bread(sb, inode->index_block);
 	if (!bh_index) {
@@ -465,6 +474,11 @@ static int get_used_size(struct ouichefs_inode_info *inode, struct super_block *
 	return used_size;
 }
 
+/* 
+ * inode : OUICHEFS_INODE(inode)
+ * sb : super block
+ * block_num : un pointeur qui peut stocker le numero du block
+ * parcourir la liste du bloc pour trouver le premier bloc pratiment utilisee
 static int get_first_wasted(struct ouichefs_inode_info *inode, struct super_block *sb, int* block_num){
 	for (int i = 0; i < OUICHEFS_BLOCK_SIZE/sizeof(uint32_t); i++) {
 		int block_num = 0;
