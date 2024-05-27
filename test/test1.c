@@ -111,23 +111,28 @@ int main()
     }
 
     copy_file(file, "./copy.txt");
-    if(insert_file("Hello World", "/mnt/ouichefs/file1", 10)){
-        perror("Failed to insert file");
-        return 1;
-    }
-    if(insert_file("blablablabla", "/mnt/ouichefs/file1", 4098)){
-        perror("Failed to insert file");
-        return 1;
-    }
 
-    if(insert_file("random_message", "/mnt/ouichefs/file1", 5000)){
-        perror("Failed to insert file");
-        return 1;
-    }
     if(insert_file("Hello World", "./copy.txt", 10)){
         perror("Failed to insert file local");
         return 1;
     }
+
+    if(insert_file("Hello World", "/mnt/ouichefs/file1", 0)){
+        perror("Failed to insert file");
+        return 1;
+    }
+    if(ioctl(file1, LIST_USED_BLOCKS, buf)==-1)
+        perror("Failed to system call ioctl in LIST_USED request\n");
+    printf("resultat of ioctl LIST_USED_BLOCKS after hello world: %s\n", buf);
+
+    
+    if(insert_file("blablablabla", "/mnt/ouichefs/file1", 4098)){
+        perror("Failed to insert file");
+        return 1;
+    }
+    if(ioctl(file1, LIST_USED_BLOCKS, buf)==-1)
+        perror("Failed to system call ioctl in LIST_USED request\n");
+    printf("resultat of ioctl LIST_USED_BLOCKS after blablabla: %s\n", buf);
 
     read_file("/mnt/ouichefs/file1");
     read_file("./copy.txt");
@@ -164,6 +169,7 @@ int main()
     if(ioctl(file1, LIST_USED_BLOCKS, buf)==-1)
         perror("Failed to system call ioctl in LIST_USED request\n");
     printf("resultat of ioctl LIST_USED_BLOCKS: %s\n", buf);
+    read_file("/mnt/ouichefs/file1");
     
     close(file);
     close(file1);
