@@ -355,6 +355,9 @@ static ssize_t ouichefs_write(struct file *file, const char __user *data, size_t
 			if (!bno) {
 				return -ENOSPC;
 			}
+			/*
+			* to insert data in front of the next block
+			*/
 			if(*pos % OUICHEFS_BLOCK_SIZE == 0) {
 				int prev_block = index->blocks[iblock];
 				index->blocks[iblock] = bno;
@@ -368,7 +371,12 @@ static ssize_t ouichefs_write(struct file *file, const char __user *data, size_t
 					if (should_break) 
 						break;
 				}
-			} else {
+			} 
+			/*
+			* to insert data in the middle of the block
+			* move the data in the block for len and insert the new data
+			*/
+			else {
 				int next_block = index->blocks[iblock + 1];
 				index->blocks[iblock + 1] = bno;
 				char *buffer_content = kmalloc(len-remain_length, GFP_KERNEL);
@@ -426,6 +434,11 @@ static ssize_t ouichefs_write(struct file *file, const char __user *data, size_t
 	}
 	char *buffer = bh->b_data;
 	int start = *pos % OUICHEFS_BLOCK_SIZE;
+	/*
+	* to insert data in the middle of the block
+	* case 1: the position is after the length of the block
+	* case 2: the position is before the length of the block
+	*/
 	if(ret == 0 && start > length){
 		start = length;
 		if(copy_from_user(buffer + start, data, len)) {
@@ -472,6 +485,12 @@ static ssize_t ouichefs_write(struct file *file, const char __user *data, size_t
 		mark_inode_dirty(inode);
 		return len;
 	}
+
+	/*
+	* to insert data at the tail of the block (the block is empty or the position is at the end of the block)
+	*/
+	* the block can the empty or not
+	*/
 	uint32_t remain = len < OUICHEFS_BLOCK_SIZE - *pos % OUICHEFS_BLOCK_SIZE  ? 
 		len : OUICHEFS_BLOCK_SIZE - *pos % OUICHEFS_BLOCK_SIZE;
 	if(copy_from_user(buffer + *pos % OUICHEFS_BLOCK_SIZE, data, remain)) {
