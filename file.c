@@ -488,7 +488,7 @@ static ssize_t ouichefs_write(struct file *file, const char __user *data, size_t
 
 	/*
 	* to insert data at the tail of the block (the block is empty or the position is at the end of the block)
-	*/
+	*
 	* the block can the empty or not
 	*/
 	uint32_t remain = len < OUICHEFS_BLOCK_SIZE - *pos % OUICHEFS_BLOCK_SIZE  ? 
