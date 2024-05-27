@@ -290,13 +290,23 @@ static ssize_t ouichefs_read(struct file *file, char __user *data, size_t len, l
 	return to_be_copied;
 }
 
+<<<<<<< HEAD
 /*
  * la fonction retourne un int qui represent les cas differents
  * 0 : il n'a besoin pas d'un nouveau block
  * 1 : ce bloc n'est pas allouee
  * 2 : n'a pas assez place pour ecrire len bits du donees 
  */
+=======
+>>>>>>> cfca0c8 (write correct read wrong)
 
+
+/*
+ * la fonction retourne un int qui represent les cas differents
+ * 0 : il n'a besoin pas d'un nouveau block
+ * 1 : ce bloc n'est pas allouee
+ * 2 : n'a pas assez place pour ecrire len bits du donees 
+ */
 inline int need_new_block(struct ouichefs_file_index_block *index, sector_t iblock, 
 					size_t len, size_t remain_length) {
 	if (index->blocks[iblock] == 0 ) {
@@ -311,6 +321,10 @@ inline int need_new_block(struct ouichefs_file_index_block *index, sector_t iblo
 	return 0;
 }
 
+/*
+ * Write function for the ouichefs filesystem. This function allows to write data without
+ * the use of page cache.
+ */
 static ssize_t ouichefs_write(struct file *file, const char __user *data, size_t len, loff_t *pos)
 {
 
@@ -422,6 +436,11 @@ static ssize_t ouichefs_write(struct file *file, const char __user *data, size_t
 	}
 	char *buffer = bh->b_data;
 	int start = *pos % OUICHEFS_BLOCK_SIZE;
+	/*
+	* to insert data at middle of the block(not create new block)
+	* first case: position after the length of the block
+	* second case: position before the length of the block
+	*/
 	if(ret == 0 && start > length){
 		start = length;
 		if(copy_from_user(buffer + start, data, len)) {
@@ -468,6 +487,9 @@ static ssize_t ouichefs_write(struct file *file, const char __user *data, size_t
 		mark_inode_dirty(inode);
 		return len;
 	}
+	/*
+	* to insert data at the tail of the block 
+	*/
 	uint32_t remain = len < OUICHEFS_BLOCK_SIZE - *pos % OUICHEFS_BLOCK_SIZE  ? 
 		len : OUICHEFS_BLOCK_SIZE - *pos % OUICHEFS_BLOCK_SIZE;
 	if(copy_from_user(buffer + *pos % OUICHEFS_BLOCK_SIZE, data, remain)) {
@@ -496,6 +518,10 @@ static ssize_t ouichefs_write(struct file *file, const char __user *data, size_t
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+
+>>>>>>> cfca0c8 (write correct read wrong)
 /*
  * inode : OUICHEFS_INODE(inode)
  * sb : super block
@@ -503,8 +529,11 @@ static ssize_t ouichefs_write(struct file *file, const char __user *data, size_t
  * block_num : un pointeur qui peut stocker le numero du block
  * la fonction retourne le nombre de bytes effective de ce block
  */
+<<<<<<< HEAD
 static int get_used_size(struct ouichefs_inode_info *inode, struct super_block *sb, uint32_t i, int* block_num) {
 =======
+=======
+>>>>>>> cfca0c8 (write correct read wrong)
 static inline int get_used_size(struct ouichefs_inode_info *inode, struct super_block *sb, uint32_t i, int* block_num) {
 >>>>>>> 3f54eac (write in block)
 	struct buffer_head *bh_index = sb_bread(sb, inode->index_block);
@@ -524,15 +553,22 @@ static inline int get_used_size(struct ouichefs_inode_info *inode, struct super_
 	
 	return used_size;
 }
+<<<<<<< HEAD
 
 <<<<<<< HEAD
+=======
+>>>>>>> cfca0c8 (write correct read wrong)
 /* 
  * inode : OUICHEFS_INODE(inode)
  * sb : super block
  * block_num : un pointeur qui peut stocker le numero du block
  * parcourir la liste du bloc pour trouver le premier bloc pratiment utilisee
+<<<<<<< HEAD
 static int get_first_wasted(struct ouichefs_inode_info *inode, struct super_block *sb, int* block_num){
 =======
+=======
+ */
+>>>>>>> cfca0c8 (write correct read wrong)
 static inline int get_first_wasted(struct ouichefs_inode_info *inode, struct super_block *sb, int* block_num){
 >>>>>>> 3f54eac (write in block)
 	for (int i = 0; i < OUICHEFS_BLOCK_SIZE/sizeof(uint32_t); i++) {
@@ -732,6 +768,7 @@ static long ouichefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 				brelse(curr_bh);
 				brelse(prev_bh);
 			}
+			// parcourir les blocs restant, liberer ses blocs	
 			for(int i = curr + 1; i < OUICHEFS_BLOCK_SIZE/sizeof(uint32_t); i++) {
 				struct buffer_head *bh_index = sb_bread(sb, oi->index_block);
 				struct ouichefs_file_index_block *index = (struct ouichefs_file_index_block *) bh_index->b_data;
@@ -740,6 +777,7 @@ static long ouichefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 				}
 >>>>>>> 3f54eac (write in block)
 				
+<<<<<<< HEAD
 		struct buffer_head *bh = sb_bread(sb, index->blocks[i]);
 		struct ouichefs_block_info *bi = (struct ouichefs_block_info *)bh->b_data;
 		// mettre la donnee de ce bloc comme null
@@ -756,6 +794,24 @@ static long ouichefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	    break;
 	    default:
 		return -ENOTTY;
+=======
+				struct buffer_head *bh = sb_bread(sb, index->blocks[i]);
+				struct ouichefs_block_info *bi = (struct ouichefs_block_info *)bh->b_data;
+				// mettre la donnee de ce bloc comme null
+				memset(bi->data, 0, OUICHEFS_BLOCK_SIZE);
+				// supprimer ce bloc
+				index->blocks[i] = 0;
+				mark_buffer_dirty(bh);
+				mark_buffer_dirty(bh_index);
+				sync_dirty_buffer(bh);
+				sync_dirty_buffer(bh_index);
+				brelse(bh);
+				brelse(bh_index);
+			}
+			return 0;
+		default:
+			return -ENOTTY;
+>>>>>>> cfca0c8 (write correct read wrong)
 	}
 	return 0;
 }
