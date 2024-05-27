@@ -297,13 +297,13 @@ static ssize_t ouichefs_read(struct file *file, char __user *data, size_t len, l
  * 2 : n'a pas assez place pour ecrire len bits du donees 
  */
 
-int need_new_block(struct ouichefs_file_index_block *index, sector_t iblock, 
-					size_t len, size_t remain_lenth) {
+inline int need_new_block(struct ouichefs_file_index_block *index, sector_t iblock, 
+					size_t len, size_t remain_length) {
 	if (index->blocks[iblock] == 0 ) {
 		pr_info("block is empty\n");
 		return 1;
 	}
-	if(remain_lenth < len) {
+	if(remain_length < len) {
 		pr_info("need new\n");
 		return 2;
 	}
@@ -313,7 +313,6 @@ int need_new_block(struct ouichefs_file_index_block *index, sector_t iblock,
 
 static ssize_t ouichefs_write(struct file *file, const char __user *data, size_t len, loff_t *pos)
 {
-	// pr_info("write\n");
 
 	struct inode *inode = file->f_inode;
 	struct super_block *sb = inode->i_sb;	
@@ -422,6 +421,53 @@ static ssize_t ouichefs_write(struct file *file, const char __user *data, size_t
 		return -EIO;
 	}
 	char *buffer = bh->b_data;
+	int start = *pos % OUICHEFS_BLOCK_SIZE;
+	if(ret == 0 && start > length){
+		start = length;
+		if(copy_from_user(buffer + start, data, len)) {
+			brelse(bh);
+			brelse(bh_index);
+			return -EFAULT;
+		}
+		mark_buffer_dirty(bh);
+		sync_dirty_buffer(bh);
+		*pos = length + len;
+		file->f_pos = *pos;
+		data += len;
+
+		brelse(bh);
+		brelse(bh_index);
+
+		inode->i_size += len;
+		inode->i_mtime = inode->i_ctime = current_time(inode);
+
+		mark_inode_dirty(inode);
+		return len;
+	} else if(ret == 0 && start < length){
+		char * temp = kmalloc(length - start, GFP_KERNEL);
+		memcpy(temp, &bi->data[start], length - start);
+		if(copy_from_user(bi->data + start, data, len)) {
+			kfree(temp);
+			brelse(bh);
+			brelse(bh_index);
+			return -EFAULT;
+		}
+		memcpy(bi->data + start + len, temp, length - start);
+		kfree(temp);
+		mark_buffer_dirty(bh);
+		sync_dirty_buffer(bh);
+		*pos += len;
+		file->f_pos = *pos;
+		data += len;
+
+		brelse(bh);
+		brelse(bh_index);
+
+		inode->i_size += len;
+		inode->i_mtime = inode->i_ctime = current_time(inode);
+		mark_inode_dirty(inode);
+		return len;
+	}
 	uint32_t remain = len < OUICHEFS_BLOCK_SIZE - *pos % OUICHEFS_BLOCK_SIZE  ? 
 		len : OUICHEFS_BLOCK_SIZE - *pos % OUICHEFS_BLOCK_SIZE;
 	if(copy_from_user(buffer + *pos % OUICHEFS_BLOCK_SIZE, data, remain)) {
@@ -449,6 +495,7 @@ static ssize_t ouichefs_write(struct file *file, const char __user *data, size_t
 	return len;
 }
 
+<<<<<<< HEAD
 /*
  * inode : OUICHEFS_INODE(inode)
  * sb : super block
@@ -457,6 +504,9 @@ static ssize_t ouichefs_write(struct file *file, const char __user *data, size_t
  * la fonction retourne le nombre de bytes effective de ce block
  */
 static int get_used_size(struct ouichefs_inode_info *inode, struct super_block *sb, uint32_t i, int* block_num) {
+=======
+static inline int get_used_size(struct ouichefs_inode_info *inode, struct super_block *sb, uint32_t i, int* block_num) {
+>>>>>>> 3f54eac (write in block)
 	struct buffer_head *bh_index = sb_bread(sb, inode->index_block);
 	if (!bh_index) {
 		return -EIO;
@@ -475,12 +525,16 @@ static int get_used_size(struct ouichefs_inode_info *inode, struct super_block *
 	return used_size;
 }
 
+<<<<<<< HEAD
 /* 
  * inode : OUICHEFS_INODE(inode)
  * sb : super block
  * block_num : un pointeur qui peut stocker le numero du block
  * parcourir la liste du bloc pour trouver le premier bloc pratiment utilisee
 static int get_first_wasted(struct ouichefs_inode_info *inode, struct super_block *sb, int* block_num){
+=======
+static inline int get_first_wasted(struct ouichefs_inode_info *inode, struct super_block *sb, int* block_num){
+>>>>>>> 3f54eac (write in block)
 	for (int i = 0; i < OUICHEFS_BLOCK_SIZE/sizeof(uint32_t); i++) {
 		int block_num = 0;
 		int size = get_used_size(inode, sb, i, &block_num);
@@ -504,6 +558,7 @@ static long ouichefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
     struct super_block *sb = file->f_inode->i_sb;
     struct inode *inode = file->f_inode;
     struct ouichefs_inode_info *oi = OUICHEFS_INODE(inode);
+<<<<<<< HEAD
     // init les retounes de la commaande ioctl
     int partially_blocks = 0, wasted_bytes = 0;
     memset(list, 0, sizeof(list));
@@ -515,6 +570,19 @@ static long ouichefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	if (block_num == 0) {
 	    break;
 	}
+=======
+	int partially_blocks = 0, wasted_bytes = 0;
+	int used_blocks = 0;
+	memset(list, 0, sizeof(list));
+	
+    for (int i = 0; i < OUICHEFS_BLOCK_SIZE/sizeof(uint32_t); i++) {
+		int block_num = 0;
+		int size = get_used_size(oi, sb, i, &block_num);
+		if (block_num == 0) {
+			break;
+		}
+		used_blocks++;
+>>>>>>> 3f54eac (write in block)
 
 	if (size < OUICHEFS_BLOCK_SIZE) {
 	    partially_blocks++;
@@ -528,6 +596,7 @@ static long ouichefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	strlcat(list, string, sizeof(list));
     }
 
+<<<<<<< HEAD
     char buf[100];
     switch (cmd) {
 	case USED_BLOCKS:
@@ -601,6 +670,75 @@ static long ouichefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 		if (index->blocks[i] == 0) {
 	            break;
 		}
+=======
+	char buf[100];
+	switch (cmd) {
+		case USED_BLOCKS:
+			if(snprintf(buf, 100, "%d", used_blocks) < 0)
+				return -EFAULT;
+			if(copy_to_user((char *)arg, buf, 100))
+				return -EFAULT;	
+			return 0;
+		case PARTIALLY_BLOCKS:
+			if(snprintf(buf, 100, "%d", partially_blocks) < 0)
+				return -EFAULT;
+			if(copy_to_user((char *)arg, buf, 100))
+				return -EFAULT;	
+			return 0;
+		case WASTED_BYTES:
+			if(snprintf(buf, 100, "%d", wasted_bytes) < 0)
+				return -EFAULT;
+			if(copy_to_user((char *)arg, buf, 100))
+				return -EFAULT;	
+			return 0;
+		case LIST_USED_BLOCKS:
+			if(copy_to_user((char *)arg, list, 100))
+				return -EFAULT;
+			return 0;
+		case DEFRAGEMENTATION:
+		    int prev_num = -1, curr_num = -1;
+			int prev = get_first_wasted(oi, sb, &prev_num);
+			int curr = prev;
+			uint32_t written = prev*OUICHEFS_BLOCK_SIZE;
+			while (written + OUICHEFS_BLOCK_SIZE < inode->i_size) {
+				int prev_size = get_used_size(oi, sb, curr, &prev_num);
+				if (curr == prev)
+					curr++;
+				int curr_size = get_used_size(oi, sb, curr, &curr_num);
+				int prev_wasted = OUICHEFS_BLOCK_SIZE - prev_size;
+				struct buffer_head *curr_bh = sb_bread(sb, curr_num);
+				struct ouichefs_block_info *curr_bi = (struct ouichefs_block_info *)curr_bh->b_data;
+				struct buffer_head *prev_bh = sb_bread(sb, prev_num);
+				struct ouichefs_block_info *prev_bi = (struct ouichefs_block_info *)prev_bh->b_data;
+
+				if(prev_wasted > curr_size){
+					memcpy(prev_bi->data + prev_size, curr_bi->data, curr_size);
+					curr++;
+				} else {
+					memcpy(prev_bi->data + prev_size, curr_bi->data, prev_wasted);
+					written = prev*OUICHEFS_BLOCK_SIZE;
+					char * buffer = kmalloc(curr_size - prev_wasted, GFP_KERNEL);
+					memcpy(buffer, curr_bi->data + prev_wasted, curr_size - prev_wasted);
+					memset(curr_bi->data, 0, OUICHEFS_BLOCK_SIZE);
+					memcpy(curr_bi->data, buffer, curr_size - prev_wasted);
+					prev = get_first_wasted(oi, sb, &prev_num);
+					curr = prev;
+					kfree(buffer);	
+				}
+				mark_buffer_dirty(curr_bh);
+				mark_buffer_dirty(prev_bh);
+				sync_dirty_buffer(curr_bh);
+				sync_dirty_buffer(prev_bh);
+				brelse(curr_bh);
+				brelse(prev_bh);
+			}
+			for(int i = curr + 1; i < OUICHEFS_BLOCK_SIZE/sizeof(uint32_t); i++) {
+				struct buffer_head *bh_index = sb_bread(sb, oi->index_block);
+				struct ouichefs_file_index_block *index = (struct ouichefs_file_index_block *) bh_index->b_data;
+				if (index->blocks[i] == 0) {
+					break;
+				}
+>>>>>>> 3f54eac (write in block)
 				
 		struct buffer_head *bh = sb_bread(sb, index->blocks[i]);
 		struct ouichefs_block_info *bi = (struct ouichefs_block_info *)bh->b_data;
